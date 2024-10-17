@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.model_selection import StratifiedGroupKFold
 
 # 데이터 경로 설정
-data_dir = '../../dataset'
+data_dir = '../../unzipped_data/dataset'
 train_json_path = os.path.join(data_dir, "train.json")
 
 # coco 데이터 로드
@@ -97,3 +97,61 @@ for fold_index, (train_idx, val_idx) in enumerate(stgk.split(X, y, group)):
 
 # # 등록된 데이터셋 목록 확인
 # print(DatasetCatalog.list())
+
+
+
+import collections
+
+# 각 fold의 category 분포를 확인하는 함수 (시각화 없이 출력만)
+def print_category_distribution(annotations, fold_type="train", fold_index=0):
+    # annotations에서 category_id 추출
+    category_ids = [anno['category_id'] for anno in annotations]
+    
+    # category_id 별로 개수를 세기
+    counter = collections.Counter(category_ids)
+    
+    # category_id를 오름차순으로 정렬한 후 출력
+    sorted_counter = dict(sorted(counter.items()))
+    
+    # 보기 쉽게 출력
+    print(f"\n{fold_type.capitalize()} Fold {fold_index} Category Distribution (Sorted by Category ID):")
+    for category_id, count in sorted_counter.items():
+        print(f"Category {category_id}: {count}")
+
+# fold별로 데이터 저장과 함께 분포 출력
+for fold_index, (train_idx, val_idx) in enumerate(stgk.split(X, y, group)):
+    # train, val 데이터 분리
+    train_annotations = [coco_data['annotations'][i] for i in train_idx]
+    val_annotations = [coco_data['annotations'][i] for i in val_idx]
+    
+    # train, val JSON 생성
+    train_data = coco_data.copy()
+    val_data = coco_data.copy()
+    
+    # annotations 업데이트
+    train_data['annotations'] = train_annotations
+    val_data['annotations'] = val_annotations
+    
+    # 이미지 ID들 추출
+    train_image_ids = set(anno['image_id'] for anno in train_annotations)
+    val_image_ids = set(anno['image_id'] for anno in val_annotations)
+    
+    # 이미지 정보 업데이트
+    train_data['images'] = [img for img in coco_data['images'] if img['id'] in train_image_ids]
+    val_data['images'] = [img for img in coco_data['images'] if img['id'] in val_image_ids]
+    
+    # train, val JSON 파일로 저장
+    fold_train_json_path = os.path.join(data_dir, f"train_fold_{fold_index}.json")
+    fold_val_json_path = os.path.join(data_dir, f"val_fold_{fold_index}.json")
+    
+    with open(fold_train_json_path, 'w') as f_train:
+        json.dump(train_data, f_train)
+    
+    with open(fold_val_json_path, 'w') as f_val:
+        json.dump(val_data, f_val)
+    
+    print(f"Fold {fold_index}: train and val JSON files saved.")
+    
+    # 각 fold에 대해 category 분포 출력 (시각화 없이)
+    print_category_distribution(train_annotations, fold_type="train", fold_index=fold_index)
+    print_category_distribution(val_annotations, fold_type="val", fold_index=fold_index)
