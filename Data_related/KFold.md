@@ -18,7 +18,9 @@
 > StratifiedKFold + GoupFOld로 하나의 데이터에 여러 객체(클래스) 가 존재하는 경우 클래스의 불균형을 막으면서 Group을 기준으로 KFold를 진행하는 Method 입니다.
 
 
-
+### <Object Detection Task에서 StratifiedGroupKFold 적용한 결과 >
+![alt text](image-1.png)
+![alt text](image-2.png)
 
 
 [Reference](https://scikit-learn.org/dev/auto_examples/model_selection/plot_cv_indices.html#sphx-glr-auto-examples-model-selection-plot-cv-indices-py)
