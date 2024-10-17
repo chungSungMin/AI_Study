@@ -1,158 +1,99 @@
 import json
+import os
 import numpy as np
 from sklearn.model_selection import StratifiedGroupKFold
 
-# load json: modify the path to your own ‘train.json’ file
-annotation = '/Users/jeongseungmin/Desktop/Study/codeStudy/unzipped_data/dataset/train.json'
+# 데이터 경로 설정
+data_dir = '../../dataset'
+train_json_path = os.path.join(data_dir, "train.json")
 
-with open(annotation) as f: data = json.load(f)
+# coco 데이터 로드
+with open(train_json_path, 'r') as f:
+    coco_data = json.load(f)
 
-
-var = [(ann['image_id'], ann['category_id']) for ann in data['annotations']]
-X = np.ones(len(data['annotations']), 1)
-y = np.array([v[1] for v in var])
-groups = np.array([v[0] for v in var])
-
-sgkf = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=42)
-
-for train_idx, val_idx in sgkf.split(X, y, groups):
-    print("Train : ", groups[train_idx])
-    print(" ", y[train_idx])
-    print("Val : ", groups[val_idx])
-    print(" ", y[val_idx])
-
-
-# check distribution
-import pandas as pd
-from collections import Counter
-
-def get_distribution(y):
-    y_distr = Counter(y)
-    y_vals_sum = sum(y_distr.values())
-
-    return [f'{y_distr[i]/y_vals_sum:.2%}' for i in range(np.max(y) +1)]
-
-distrs = [get_distribution(y)]
-index = ['training set']
-
-for fold_ind, (train_idx, val_idx) in enumerate(sgkf.split(X,y, groups)):
-    train_y, val_y = y[train_idx], y[val_idx]
-    train_gr, val_gr = groups[train_idx], groups[val_idx]
-
-    assert len(set(train_gr) & set(val_gr)) == 0 
-    distrs.append(get_distribution(train_y))
-
-    distrs.append(get_distribution(val_y))
-    index.append(f'train - fold{fold_ind}')
-    index.append(f'val - fold{fold_ind}')
-
-categories = [d['name'] for d in data['categories']]
-pd.DataFrame(distrs, index=index, columns = [categories[i] for i in range(np.max(y) + 1)])
-
-next(sgkf.split(X,y, groups))[0]
-
-len(set(train_gr))
-
-train_gr
-
-# import random
-# import os
-# import shutil
-
-# origin_dataset_dir = '/Users/jeongseungmin/Desktop/Study/codeStudy/unzipped_data/dataset'
-# new_dataset_dir = '/Users/jeongseungmin/Desktop/Study/codeStudy/unzipped_data/skfold-pseduo'
-# input_json_path = '/Users/jeongseungmin/Desktop/Study/codeStudy/unzipped_data/dataset/train.json' #train.json 파일 경로
-# val_ratio = 0.1
+'''
+    image_id와 category_id를 이용해 X, y, group 생성
+    X : 형식상 필요하면 stratifiedGroupKFold에서는 필요로 하지 않습니다.
+    y : 실제 레이블 ( 해당 task 에서는 category_id ) 를 설정
+    group : 그룹을 만들어줍니다 ( 하나의 이미지내의 모든 객체들은 동일한 그룹에 들어가야 하기에 image_id 가 그룹이 된다)
+'''
+var = [(anno['image_id'], anno['category_id']) for anno in coco_data['annotations']]
+X = np.ones((len(var), 1))  # placeholder, feature 없이 진행하는 경우
+y = np.array([an[1] for an in var])
+group = np.array([an[0] for an in var])
 
 
-# for fold_ind, (train_idx, val_idx) in enumerate(sgkf.split(X,y, groups)):
-# #json 파일 불러오기
-#     with open(input_json_path, 'r') as json_reader:
-#         dataset = json.load(json_reader)
+n_splits = 5
+# StratifiedGroupKFold로 데이터 분리
+stgk = StratifiedGroupKFold(n_splits= n_splits, shuffle=True, random_state=42)
 
-#     images = dataset['images'] # dict에서 (key:images)의 values 불러오기
-#     categories = dataset['categories']# dict에서 (key:catagories)의 values 불러오기
-#     annotations = dataset['annotations']# dict에서 (key:annotations)의 values 불러오기
+# fold별로 데이터 저장
+for fold_index, (train_idx, val_idx) in enumerate(stgk.split(X, y, group)):
+    # train, val 데이터 분리
+    train_annotations = [coco_data['annotations'][i] for i in train_idx]
+    val_annotations = [coco_data['annotations'][i] for i in val_idx]
     
-#     train_gr, val_gr = groups[train_idx], groups[val_idx]
-
-#     # image_ids = [x.get('id') for x in images] # get함수를 통해 dict에서 id값 추출
-#     # image_ids.sort() # 정렬
-#     # random.shuffle(image_ids) # 인덱스 섞기
-
-#     # num_val = int(len(image_ids) * val_ratio)
-#     # num_train = len(image_ids) - num_val
-
-#     image_ids_val, image_ids_train = set(val_gr), set(train_gr)
-
-#     num_train = len(image_ids_train)
-#     num_val = len(image_ids_val)
-
-#     #Image_id를 기준으로 train/val 나누기
-#     train_images = [x for x in images if x.get('id') in image_ids_train]
-#     val_images = [x for x in images if x.get('id') in image_ids_val]
-#     train_annotations = [x for x in annotations if x.get('image_id') in image_ids_train]
-#     val_annotations = [x for x in annotations if x.get('image_id') in image_ids_val]
-
-#     #file_name 수정
-#     for info in val_images:
-#         name = info['file_name'].split('/')[1]
-#         info['file_name'] = os.path.join('val',name)
-        
-#     #나눈 정보를 가지고 새로운 dict 생성
-#     train_data = {
-#         'images': train_images,
-#         'annotations': train_annotations,
-#         'categories': categories,
-#     }
-
-#     val_data = {
-#         'images': val_images,
-#         'annotations': val_annotations,
-#         'categories': categories,
-#     }
-
-
-#     # 새롭게 만든 dict로 train/val json 파일 생성
-#     os.makedirs(new_dataset_dir+f'/{fold_ind}', exist_ok=True)
-
-#     new_train_json = os.path.join(new_dataset_dir, f'{fold_ind}','train.json')
-#     new_val_json = os.path.join(new_dataset_dir,f'{fold_ind}', 'val.json')
-#     copy_test_json = os.path.join(new_dataset_dir, f'{fold_ind}','test.json')
-
-#     #train.json 새롭게 생성
-#     with open(new_train_json, 'w') as train_writer:
-#         json.dump(train_data, train_writer)
-
-#     #val.json 새롭게 생성
-#     with open(new_val_json, 'w') as val_writer:
-#         json.dump(val_data, val_writer)
-
-#     # train/val 이미지 파일 분리 복사
-#     os.makedirs(os.path.join(new_dataset_dir, f'{fold_ind}','train'), exist_ok=True)
-#     os.makedirs(os.path.join(new_dataset_dir, f'{fold_ind}','val'), exist_ok=True)
-
-#     # train 해당 파일 복사
-#     for train_img_info in train_images:
-#         from_copy_train_img = os.path.join(origin_dataset_dir, train_img_info['file_name'])
-#         to_copy_train_img = os.path.join(new_dataset_dir, f'{fold_ind}',train_img_info['file_name'])
-#         shutil.copyfile(from_copy_train_img, to_copy_train_img)
-        
-#     # val 해당 파일 복사
-#     for val_img_info in val_images:
-#         origin_id = os.path.join('train', val_img_info['file_name'].split('/')[1])
-#         from_copy_val_img = os.path.join(origin_dataset_dir, origin_id)
-#         to_copy_val_img = os.path.join(new_dataset_dir,f'{fold_ind}', val_img_info['file_name'])
-#         shutil.copyfile(from_copy_val_img, to_copy_val_img)
+    # train, val JSON 생성
+    train_data = coco_data.copy()
+    val_data = coco_data.copy()
     
-#     #기존 파일에서 test json파일 복사
-#     shutil.copyfile(os.path.join(origin_dataset_dir, 'test.json'), copy_test_json)
+    # annotations 업데이트
+    train_data['annotations'] = train_annotations
+    val_data['annotations'] = val_annotations
+    
+    # 이미지 ID들 추출
+    train_image_ids = set(anno['image_id'] for anno in train_annotations)
+    val_image_ids = set(anno['image_id'] for anno in val_annotations)
+    
+    # 이미지 정보 업데이트
+    train_data['images'] = [img for img in coco_data['images'] if img['id'] in train_image_ids]
+    val_data['images'] = [img for img in coco_data['images'] if img['id'] in val_image_ids]
+    
+    # train, val JSON 파일로 저장
+    fold_train_json_path = os.path.join(data_dir, f"train_fold_{fold_index}.json")
+    fold_val_json_path = os.path.join(data_dir, f"val_fold_{fold_index}.json")
+    
+    # json.dump(올리고자 하는 데이터 값, 올리고 싶은 경로)
+    with open(fold_train_json_path, 'w') as f_train:
+        json.dump(train_data, f_train)
+    
+    with open(fold_val_json_path, 'w') as f_val:
+        json.dump(val_data, f_val)
+    
+    print(f"Fold {fold_index}: train and val JSON files saved.")
 
-#     # test 이미지 폴더 전체 복사
-#     shutil.copytree(os.path.join(origin_dataset_dir, 'test'), os.path.join(new_dataset_dir,f'{fold_ind}', 'test'))
 
 
-#     print(f'train 이미지 파일 개수({int((1-val_ratio)*100)}%):{num_train}')
-#     print('new_dataset_train 파일 개수:{}'.format(len(os.listdir(os.path.join(new_dataset_dir,f'{fold_ind}','train')))))
-#     print(f'val 이미지 파일 개수({int(val_ratio*100)}%):{num_val}')
-#     print('new_dataset_val 파일 개수:{}'.format(len(os.listdir(os.path.join(new_dataset_dir,f'{fold_ind}', 'val')))))
+
+
+## |_____________________________________________________________________________________________________________ |
+## | 아래 내용의 경우 detectron2에 데이터를 등록하는 방법입니다. detectron2를 사용하는 경우 아래 코드를 실행 시켜 등록을 확인 가능합니다.    |
+## |_____________________________________________________________________________________________________________ |
+
+
+
+# for fold_idx in range(n_splits):
+#     # Register Dataset
+#     try:
+#         # train_fold_{fold_idx}.json 파일을 등록하는 부분에서 f-string을 사용하여 경로를 올바르게 설정
+#         register_coco_instances(f'coco_trash_train_fold_{fold_idx}', {}, 
+#                                 f'../../dataset/train_fold_{fold_idx}.json', '../../dataset/')
+#     except AssertionError:
+#         pass
+
+#     try:
+#         # val_fold_{fold_idx}.json 파일을 등록하는 부분에서도 f-string을 사용하여 경로를 올바르게 설정
+#         register_coco_instances(f'coco_trash_val_fold_{fold_idx}', {}, 
+#                                 f'../../dataset/val_fold_{fold_idx}.json', '../../dataset/')
+#     except AssertionError:
+#         pass
+
+# # MetadataCatalog는 메타데이터를 설정
+# MetadataCatalog.get('coco_trash_train').thing_classes = ["General trash", "Paper", "Paper pack", "Metal", 
+#                                                          "Glass", "Plastic", "Styrofoam", "Plastic bag", "Battery", "Clothing"]
+
+
+# from detectron2.data import DatasetCatalog
+
+# # 등록된 데이터셋 목록 확인
+# print(DatasetCatalog.list())
