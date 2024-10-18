@@ -17,6 +17,7 @@ with open(train_json_path, 'r') as f:
     y : 실제 레이블 ( 해당 task 에서는 category_id ) 를 설정
     group : 그룹을 만들어줍니다 ( 하나의 이미지내의 모든 객체들은 동일한 그룹에 들어가야 하기에 image_id 가 그룹이 된다)
 '''
+
 var = [(anno['image_id'], anno['category_id']) for anno in coco_data['annotations']]
 X = np.ones((len(var), 1))  # placeholder, feature 없이 진행하는 경우
 y = np.array([an[1] for an in var])
