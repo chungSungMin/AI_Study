@@ -1,4 +1,4 @@
-## classification_practice.ipynb
+## FashionNMIST.ipynb
 > 데이터 불러오기 부터 학습시키기까지 전반적인 코드를 구현해 둔 파일입니다.
 
 
