@@ -1,3 +1,4 @@
 # FashionMNIST 데이터 폴더 무시
 data/FashionMNIST/
 .pth
+PyTorch/data/FashionMNIST
